@@ -10,10 +10,11 @@ if ($('#invite-form')) {
     const visible = password.type === 'text'; password.type = visible ? 'password' : 'text';
     $('#toggle-password').textContent = visible ? '◉' : '◉̸';
   };
+  $('#add-event').onclick = () => { $('#events').insertAdjacentHTML('beforeend', '<div class="event-row"><input class="event-emoji" value="✨" aria-label="Эмодзи"><input class="event-title" placeholder="Например, боулинг" aria-label="Мероприятие"></div>'); };
   form.addEventListener('submit', async event => {
     event.preventDefault();
     try {
-      const body = Object.fromEntries(new FormData(form));
+      const body = Object.fromEntries(new FormData(form)); body.options = [...document.querySelectorAll('.event-row')].map(row => ({ emoji: row.querySelector('.event-emoji').value, title: row.querySelector('.event-title').value }));
       const data = await request('/api/admin/invites', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password.value }, body: JSON.stringify(body) });
       $('#result').hidden = false; $('#result').innerHTML = `<b>Готово!</b><p>Скопируй и отправь эту ссылку:</p><div class="url">${escapeHtml(data.url)}</div><button class="copy" type="button">Скопировать</button>`;
       $('.copy').onclick = () => navigator.clipboard.writeText(data.url).then(() => $('.copy').textContent = 'Скопировано ✓');
@@ -22,7 +23,7 @@ if ($('#invite-form')) {
   });
   async function loadInvites() {
     if (!password.value) return;
-    try { const list = await request('/api/admin/invites', { headers: { 'X-Admin-Password': password.value } }); $('#invites').innerHTML = list.length ? list.map(item => `<article><b>${escapeHtml(item.recipient)}</b><span>${item.status === 'accepted' ? '♥ Согласилась' : item.status === 'declined' ? 'Отказ' : 'Ожидает ответа'}</span></article>`).join('') : 'Пока нет приглашений.'; } catch {} 
+    try { const list = await request('/api/admin/invites', { headers: { 'X-Admin-Password': password.value } }); $('#invites').innerHTML = list.length ? list.map(item => `<article><b>${escapeHtml(item.recipient)}</b><a href="/i/${item.code}" target="_blank">Открыть ссылку</a><button class="delete-invite" data-code="${item.code}">Удалить</button></article>`).join('') : 'Пока нет приглашений.'; document.querySelectorAll('.delete-invite').forEach(button => button.onclick = async () => { if (!confirm('Удалить приглашение?')) return; await request(`/api/admin/invites/${button.dataset.code}`, { method: 'DELETE', headers: { 'X-Admin-Password': password.value } }); loadInvites(); }); } catch {} 
   }
   password.addEventListener('change', loadInvites);
 }
@@ -32,7 +33,7 @@ if ($('#invite')) {
   const show = id => document.querySelectorAll('.step').forEach(step => step.classList.toggle('active', step.id === id));
   request(`/api/invites/${inviteCode}`).then(data => {
     invite = data; $('#for').textContent = `${data.recipient}, привет 👋`; $('#question').textContent = data.question;
-    $('#ideas').innerHTML = data.options.map((option, index) => `<button type="button" data-idea="${escapeHtml(option)}"><span>${icons[index]}</span>${escapeHtml(option)}</button>`).join('');
+    $('#ideas').innerHTML = data.options.map((option, index) => { const title = typeof option === 'string' ? option : option.title; const emoji = typeof option === 'string' ? icons[index] : option.emoji || icons[index]; return `<button type="button" data-idea="${escapeHtml(title)}"><span>${escapeHtml(emoji)}</span>${escapeHtml(title)}</button>`; }).join('');
     document.querySelectorAll('[data-idea]').forEach(button => button.onclick = () => { document.querySelectorAll('[data-idea]').forEach(x => x.classList.remove('selected')); button.classList.add('selected'); selectedIdea = button.dataset.idea; $('#to-date').disabled = false; });
   }).catch(error => { $('#question').textContent = error.message; });
   const noButton = $('[data-answer="no"]'); const phone = $('.date-phone');
@@ -42,5 +43,5 @@ if ($('#invite')) {
   $('#to-ideas').onclick = () => show('step-date');
   $('#details').onsubmit = event => { event.preventDefault(); show('step-ideas'); };
   $('#to-date').onclick = () => { if (selectedIdea) finish({ answer: 'yes', date: $('#date').value, time: $('#time').value, idea: selectedIdea }); };
-  async function finish(body) { try { await request(`/api/invites/${inviteCode}/response`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); $('#ticket-lead').textContent = `${invite.recipient}, ты сказала «Да» 💘`; $('#ticket-text').textContent = `Встречаемся ${body.date} в ${body.time}. В планах: ${body.idea}.`; $('#ticket-date').textContent = body.date; $('#ticket-time').textContent = body.time; $('#ticket-idea').textContent = body.idea; show('step-ticket'); } catch (error) { alert(error.message); } }
+  async function finish(body) { try { await request(`/api/invites/${inviteCode}/response`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const prettyDate = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' }).format(new Date(`${body.date}T12:00:00`)); $('#ticket-lead').textContent = `${invite.recipient}, ты сказала «Да» 💘`; $('#ticket-text').textContent = `Встречаемся ${prettyDate} в ${body.time}. В планах: ${body.idea}.`; $('#ticket-date').textContent = prettyDate; $('#ticket-time').textContent = body.time; $('#ticket-idea').textContent = body.idea; show('step-ticket'); } catch (error) { alert(error.message); } }
 }

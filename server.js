@@ -40,6 +40,10 @@ async function updateInvite(code, changes) {
   if (usingSupabase()) return database(`?code=eq.${encodeURIComponent(code)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(changes) });
   const data = localData(); const invite = data.invites.find(item => item.code === code); Object.assign(invite, changes); writeLocal(data);
 }
+async function deleteInvite(code) {
+  if (usingSupabase()) return database(`?code=eq.${encodeURIComponent(code)}`, { method: 'DELETE' });
+  const data = localData(); data.invites = data.invites.filter(item => item.code !== code); writeLocal(data);
+}
 function send(res, status, body, type = 'application/json') { res.writeHead(status, { 'Content-Type': `${type}; charset=utf-8`, 'Cache-Control': 'no-store' }); res.end(type === 'application/json' ? JSON.stringify(body) : body); }
 function parseBody(req) {
   return new Promise((resolve, reject) => {
@@ -92,9 +96,20 @@ const server = http.createServer(async (req, res) => {
       if (!authorized(req)) return send(res, 401, { error: 'Неверный пароль' });
       const body = await parseBody(req); const recipient = clean(body.recipient);
       if (!recipient) return send(res, 400, { error: 'Укажите имя' });
-      const invite = { code: slug(), recipient, question: clean(body.question) || 'Пойдёшь со мной на свидание?', options: [clean(body.idea1) || 'Уютный кофе', clean(body.idea2) || 'Прогулка', clean(body.idea3) || 'Ужин'], status: 'sent', created_at: new Date().toISOString() };
+      const options = Array.isArray(body.options) ? body.options.map(item => ({ title: clean(item.title), emoji: clean(item.emoji, 8) })).filter(item => item.title) : [clean(body.idea1) || 'Уютный кофе', clean(body.idea2) || 'Прогулка', clean(body.idea3) || 'Ужин'];
+      const invite = { code: slug(), recipient, question: clean(body.question) || 'Пойдёшь со мной на свидание?', options, status: 'sent', created_at: new Date().toISOString() };
       const saved = await createInvite(invite);
       return send(res, 201, { invite: saved, url: publicUrl(req, saved.code) });
+    }
+    if (url.pathname.startsWith('/api/admin/invites/') && req.method === 'DELETE') {
+      if (!authorized(req)) return send(res, 401, { error: 'Неверный пароль' });
+      await deleteInvite(url.pathname.split('/').pop()); return send(res, 200, { ok: true });
+    }
+    if (url.pathname.startsWith('/api/admin/invites/') && req.method === 'PATCH') {
+      if (!authorized(req)) return send(res, 401, { error: 'Неверный пароль' });
+      const body = await parseBody(req); const options = Array.isArray(body.options) ? body.options.map(item => ({ title: clean(item.title), emoji: clean(item.emoji, 8) })).filter(item => item.title) : undefined;
+      await updateInvite(url.pathname.split('/').pop(), { recipient: clean(body.recipient), question: clean(body.question), ...(options ? { options } : {}) });
+      return send(res, 200, { ok: true });
     }
     return send(res, 404, { error: 'Страница не найдена' });
   } catch (error) { console.error(error); return send(res, 400, { error: error.message || 'Ошибка сервера' }); }
