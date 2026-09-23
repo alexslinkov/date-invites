@@ -8,6 +8,7 @@ const port = Number(process.env.PORT || 3000);
 const root = __dirname;
 const dataPath = path.join(root, 'data.json');
 const adminPassword = process.env.ADMIN_PASSWORD || 'change-me';
+const adminUsername = process.env.ADMIN_USERNAME || 'admin';
 const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, '');
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
 
@@ -52,7 +53,7 @@ function parseBody(req) {
     req.on('end', () => { try { resolve(raw ? JSON.parse(raw) : {}); } catch { reject(new Error('Некорректные данные')); } });
   });
 }
-function authorized(req) { return req.headers['x-admin-password'] === adminPassword; }
+function authorized(req) { return req.headers['x-admin-password'] === adminPassword && (!req.headers['x-admin-username'] || req.headers['x-admin-username'] === adminUsername); }
 function clean(value, max = 120) { return String(value || '').trim().slice(0, max); }
 function slug() { return crypto.randomBytes(5).toString('hex'); }
 function publicUrl(req, code) { return `${(process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || `http://${req.headers.host}`).replace(/\/$/, '')}/i/${code}`; }

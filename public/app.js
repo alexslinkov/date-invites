@@ -5,7 +5,11 @@ async function request(url, options = {}) { const response = await fetch(url, op
 function escapeHtml(value) { const box = document.createElement('div'); box.textContent = value; return box.innerHTML; }
 
 if ($('#invite-form')) {
-  const form = $('#invite-form'); const password = $('#password'); let editingCode = '';
+  const form = $('#invite-form'); const password = $('#password'); const username = $('#username'); let editingCode = '';
+  const auth = () => ({ 'X-Admin-Password': password.value, 'X-Admin-Username': username.value });
+  username.value = localStorage.dateInvitesUser || 'admin'; password.value = localStorage.dateInvitesPassword || '';
+  if (password.value) { $('#logout').hidden = false; setTimeout(loadInvites, 0); }
+  $('#logout').onclick = () => { localStorage.removeItem('dateInvitesUser'); localStorage.removeItem('dateInvitesPassword'); password.value = ''; $('#logout').hidden = true; };
   $('#toggle-password').onclick = () => {
     const visible = password.type === 'text'; password.type = visible ? 'password' : 'text';
     $('#toggle-password').textContent = visible ? '◉' : '◉̸';
@@ -15,7 +19,7 @@ if ($('#invite-form')) {
     event.preventDefault();
     try {
       const body = Object.fromEntries(new FormData(form)); body.options = [...document.querySelectorAll('.event-row')].map(row => ({ emoji: row.querySelector('.event-emoji').value, title: row.querySelector('.event-title').value }));
-      const url = editingCode ? `/api/admin/invites/${editingCode}` : '/api/admin/invites'; const data = await request(url, { method: editingCode ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password.value }, body: JSON.stringify(body) });
+      localStorage.dateInvitesUser = username.value; localStorage.dateInvitesPassword = password.value; $('#logout').hidden = false; const url = editingCode ? `/api/admin/invites/${editingCode}` : '/api/admin/invites'; const data = await request(url, { method: editingCode ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json', ...auth() }, body: JSON.stringify(body) });
       $('#result').hidden = false; $('#result').innerHTML = editingCode ? '<b>Приглашение сохранено.</b>' : `<b>Готово!</b><p>Скопируй и отправь эту ссылку:</p><div class="url">${escapeHtml(data.url)}</div><button class="copy" type="button">Скопировать</button>`;
       if ($('.copy')) $('.copy').onclick = () => navigator.clipboard.writeText(data.url).then(() => $('.copy').textContent = 'Скопировано ✓');
       editingCode = ''; form.querySelector('.button').innerHTML = 'Сохранить приглашение <span>→</span>'; loadInvites();
