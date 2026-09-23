@@ -41,6 +41,16 @@ async function updateInvite(code, changes) {
   if (usingSupabase()) return database(`?code=eq.${encodeURIComponent(code)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(changes) });
   const data = localData(); const invite = data.invites.find(item => item.code === code); Object.assign(invite, changes); writeLocal(data);
 }
+async function saveFirstResponse(code, response) {
+  const changes = { status: response.answer === 'yes' ? 'accepted' : 'declined', response };
+  if (usingSupabase()) {
+    const rows = await database(`?code=eq.${encodeURIComponent(code)}&status=eq.sent`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Prefer: 'return=representation' }, body: JSON.stringify(changes) });
+    return rows.length === 1;
+  }
+  const data = localData(); const invite = data.invites.find(item => item.code === code);
+  if (!invite || invite.status !== 'sent') return false;
+  Object.assign(invite, changes); writeLocal(data); return true;
+}
 async function deleteInvite(code) {
   if (usingSupabase()) return database(`?code=eq.${encodeURIComponent(code)}`, { method: 'DELETE' });
   const data = localData(); data.invites = data.invites.filter(item => item.code !== code); writeLocal(data);
@@ -76,15 +86,17 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname.startsWith('/api/invites/')) {
       const invite = await getInvite(url.pathname.split('/').pop());
       if (!invite) return send(res, 404, { error: 'Приглашение не найдено' });
+      if (invite.status !== 'sent') return send(res, 410, { error: 'Это приглашение уже использовано' });
       return send(res, 200, { recipient: invite.recipient, question: invite.question, options: invite.options, status: invite.status });
     }
     if (req.method === 'POST' && url.pathname.startsWith('/api/invites/') && url.pathname.endsWith('/response')) {
       const code = url.pathname.split('/')[3]; const body = await parseBody(req); const invite = await getInvite(code);
       if (!invite) return send(res, 404, { error: 'Приглашение не найдено' });
+      if (invite.status !== 'sent') return send(res, 410, { error: 'Это приглашение уже использовано' });
       const answer = clean(body.answer, 10);
       if (!['yes', 'no'].includes(answer)) return send(res, 400, { error: 'Выберите ответ' });
       const response = { answer, date: clean(body.date, 20), time: clean(body.time, 20), idea: clean(body.idea), at: new Date().toISOString() };
-      await updateInvite(code, { status: answer === 'yes' ? 'accepted' : 'declined', response });
+      if (!(await saveFirstResponse(code, response))) return send(res, 410, { error: 'Это приглашение уже использовано' });
       const text = answer === 'yes' ? `❤️ ${invite.recipient} сказала «да»!\n${response.date || 'Дата не выбрана'}, ${response.time || 'время не выбрано'}\nИдея: ${response.idea || 'не выбрана'}` : `Ответ на приглашение для ${invite.recipient}: «нет»`;
       telegram(text).catch(() => {});
       return send(res, 200, { ok: true });
