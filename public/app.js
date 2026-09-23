@@ -28,19 +28,18 @@ if ($('#invite-form')) {
 }
 
 if ($('#invite')) {
-  let invite; let selectedIdea = '';
+  let invite; let selectedIdea = ''; const icons = ['🍕', '🍣', '🍔', '🎬', '🌃', '🎳'];
+  const show = id => document.querySelectorAll('.step').forEach(step => step.classList.toggle('active', step.id === id));
   request(`/api/invites/${inviteCode}`).then(data => {
-    invite = data; $('#for').textContent = `Для ${data.recipient}`; $('#question').textContent = data.question;
-    $('#ideas').innerHTML = data.options.map(option => `<button type="button" data-idea="${escapeHtml(option)}">${escapeHtml(option)}</button>`).join('');
-    document.querySelectorAll('[data-idea]').forEach(button => button.onclick = () => { document.querySelectorAll('[data-idea]').forEach(x => x.classList.remove('selected')); button.classList.add('selected'); selectedIdea = button.dataset.idea; });
+    invite = data; $('#for').textContent = `${data.recipient}, привет 👋`; $('#question').textContent = data.question;
+    $('#ideas').innerHTML = data.options.map((option, index) => `<button type="button" data-idea="${escapeHtml(option)}"><span>${icons[index]}</span>${escapeHtml(option)}</button>`).join('');
+    document.querySelectorAll('[data-idea]').forEach(button => button.onclick = () => { document.querySelectorAll('[data-idea]').forEach(x => x.classList.remove('selected')); button.classList.add('selected'); selectedIdea = button.dataset.idea; $('#to-date').disabled = false; });
   }).catch(error => { $('#question').textContent = error.message; });
-  const noButton = $('[data-answer="no"]'); const ask = $('#ask'); const card = $('.card');
-  const escapeNo = () => { const bounds = card.getBoundingClientRect(); const width = bounds.width - noButton.offsetWidth - 32; const height = bounds.height - noButton.offsetHeight - 32; noButton.classList.add('escaping'); noButton.style.left = `${bounds.left + 16 + Math.random() * width}px`; noButton.style.top = `${bounds.top + 16 + Math.random() * height}px`; };
+  const noButton = $('[data-answer="no"]'); const phone = $('.date-phone');
+  const escapeNo = () => { const box = phone.getBoundingClientRect(); noButton.classList.add('escaping'); noButton.style.left = `${box.left + 24 + Math.random() * (box.width - noButton.offsetWidth - 48)}px`; noButton.style.top = `${box.top + 24 + Math.random() * (box.height - noButton.offsetHeight - 48)}px`; };
   noButton.onpointerenter = escapeNo; noButton.onclick = event => { event.preventDefault(); escapeNo(); };
-  document.querySelectorAll('[data-answer="yes"]').forEach(button => button.onclick = async () => {
-    noButton.classList.remove('escaping');
-    $('#ask').hidden = true; $('#details').hidden = false;
-  });
-  $('#details').onsubmit = event => { event.preventDefault(); if (!selectedIdea) return alert('Выбери вариант встречи'); finish({ answer: 'yes', date: $('#date').value, time: $('#time').value, idea: selectedIdea }); };
-  async function finish(body) { try { await request(`/api/invites/${inviteCode}/response`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); $('#ask').hidden = true; $('#details').hidden = true; $('#done').hidden = false; $('#done').innerHTML = body.answer === 'yes' ? '<div class="big-heart">♥</div><h2>Это свидание!</h2><p>Твой ответ уже отправлен.</p>' : '<h2>Спасибо за честный ответ</h2><p>Он уже отправлен.</p>'; } catch (error) { alert(error.message); } }
+  $('[data-answer="yes"]').onclick = () => { noButton.classList.remove('escaping'); show('step-yes'); };
+  $('#to-ideas').onclick = () => show('step-ideas'); $('#to-date').onclick = () => show('step-date');
+  $('#details').onsubmit = event => { event.preventDefault(); if (!selectedIdea) return; finish({ answer: 'yes', date: $('#date').value, time: $('#time').value, idea: selectedIdea }); };
+  async function finish(body) { try { await request(`/api/invites/${inviteCode}/response`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); $('#ticket-lead').textContent = `${invite.recipient}, ты сказала «Да» 💘`; $('#ticket-text').textContent = `Встречаемся ${body.date} в ${body.time}. В планах: ${body.idea}.`; $('#ticket-date').textContent = body.date; $('#ticket-time').textContent = body.time; $('#ticket-idea').textContent = body.idea; show('step-ticket'); } catch (error) { alert(error.message); } }
 }
