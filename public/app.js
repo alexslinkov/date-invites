@@ -5,7 +5,7 @@ async function request(url, options = {}) { const response = await fetch(url, op
 function escapeHtml(value) { const box = document.createElement('div'); box.textContent = value; return box.innerHTML; }
 
 if ($('#invite-form')) {
-  const form = $('#invite-form'); const password = $('#password');
+  const form = $('#invite-form'); const password = $('#password'); let editingCode = '';
   $('#toggle-password').onclick = () => {
     const visible = password.type === 'text'; password.type = visible ? 'password' : 'text';
     $('#toggle-password').textContent = visible ? '◉' : '◉̸';
@@ -15,15 +15,15 @@ if ($('#invite-form')) {
     event.preventDefault();
     try {
       const body = Object.fromEntries(new FormData(form)); body.options = [...document.querySelectorAll('.event-row')].map(row => ({ emoji: row.querySelector('.event-emoji').value, title: row.querySelector('.event-title').value }));
-      const data = await request('/api/admin/invites', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password.value }, body: JSON.stringify(body) });
-      $('#result').hidden = false; $('#result').innerHTML = `<b>Готово!</b><p>Скопируй и отправь эту ссылку:</p><div class="url">${escapeHtml(data.url)}</div><button class="copy" type="button">Скопировать</button>`;
-      $('.copy').onclick = () => navigator.clipboard.writeText(data.url).then(() => $('.copy').textContent = 'Скопировано ✓');
-      const savedPassword = password.value; form.reset(); password.value = savedPassword; loadInvites();
+      const url = editingCode ? `/api/admin/invites/${editingCode}` : '/api/admin/invites'; const data = await request(url, { method: editingCode ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password.value }, body: JSON.stringify(body) });
+      $('#result').hidden = false; $('#result').innerHTML = editingCode ? '<b>Приглашение сохранено.</b>' : `<b>Готово!</b><p>Скопируй и отправь эту ссылку:</p><div class="url">${escapeHtml(data.url)}</div><button class="copy" type="button">Скопировать</button>`;
+      if ($('.copy')) $('.copy').onclick = () => navigator.clipboard.writeText(data.url).then(() => $('.copy').textContent = 'Скопировано ✓');
+      editingCode = ''; form.querySelector('.button').innerHTML = 'Сохранить приглашение <span>→</span>'; loadInvites();
     } catch (error) { alert(error.message); }
   });
   async function loadInvites() {
     if (!password.value) return;
-    try { const list = await request('/api/admin/invites', { headers: { 'X-Admin-Password': password.value } }); $('#invites').innerHTML = list.length ? list.map(item => `<article><b>${escapeHtml(item.recipient)}</b><a href="/i/${item.code}" target="_blank">Открыть ссылку</a><button class="delete-invite" data-code="${item.code}">Удалить</button></article>`).join('') : 'Пока нет приглашений.'; document.querySelectorAll('.delete-invite').forEach(button => button.onclick = async () => { if (!confirm('Удалить приглашение?')) return; await request(`/api/admin/invites/${button.dataset.code}`, { method: 'DELETE', headers: { 'X-Admin-Password': password.value } }); loadInvites(); }); } catch {} 
+    try { const list = await request('/api/admin/invites', { headers: { 'X-Admin-Password': password.value } }); $('#invites').innerHTML = list.length ? list.map(item => `<article><b>${escapeHtml(item.recipient)}</b><a href="/i/${item.code}" target="_blank">Открыть</a><button class="edit-invite" data-code="${item.code}">Править</button><button class="delete-invite" data-code="${item.code}">Удалить</button></article>`).join('') : 'Пока нет приглашений.'; document.querySelectorAll('.edit-invite').forEach(button => button.onclick = () => { const item = list.find(x => x.code === button.dataset.code); editingCode = item.code; $('#recipient').value = item.recipient; $('#question').value = item.question; $('#events').innerHTML = item.options.map(x => typeof x === 'string' ? `<div class="event-row"><input class="event-emoji" value="✨"><input class="event-title" value="${escapeHtml(x)}"></div>` : `<div class="event-row"><input class="event-emoji" value="${escapeHtml(x.emoji)}"><input class="event-title" value="${escapeHtml(x.title)}"></div>`).join(''); form.querySelector('.button').innerHTML = 'Сохранить изменения <span>→</span>'; window.scrollTo({ top: 0, behavior: 'smooth' }); }); document.querySelectorAll('.delete-invite').forEach(button => button.onclick = async () => { if (!confirm('Удалить приглашение?')) return; await request(`/api/admin/invites/${button.dataset.code}`, { method: 'DELETE', headers: { 'X-Admin-Password': password.value } }); loadInvites(); }); } catch {} 
   }
   password.addEventListener('change', loadInvites);
 }
