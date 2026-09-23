@@ -34,8 +34,8 @@ if ($('#invite')) {
     $('#ideas').innerHTML = data.options.map(option => `<button type="button" data-idea="${escapeHtml(option)}">${escapeHtml(option)}</button>`).join('');
     document.querySelectorAll('[data-idea]').forEach(button => button.onclick = () => { document.querySelectorAll('[data-idea]').forEach(x => x.classList.remove('selected')); button.classList.add('selected'); selectedIdea = button.dataset.idea; });
   }).catch(error => { $('#question').textContent = error.message; });
-  const noButton = $('[data-answer="no"]'); const ask = $('#ask');
-  const escapeNo = () => { const width = ask.clientWidth - noButton.offsetWidth; const height = ask.clientHeight - noButton.offsetHeight; noButton.classList.add('escaping'); noButton.style.left = `${Math.max(0, Math.random() * width)}px`; noButton.style.top = `${Math.max(54, Math.random() * height)}px`; };
+  const noButton = $('[data-answer="no"]'); const ask = $('#ask'); const card = $('.card');
+  const escapeNo = () => { const bounds = card.getBoundingClientRect(); const width = bounds.width - noButton.offsetWidth - 32; const height = bounds.height - noButton.offsetHeight - 32; noButton.classList.add('escaping'); noButton.style.left = `${bounds.left + 16 + Math.random() * width}px`; noButton.style.top = `${bounds.top + 16 + Math.random() * height}px`; };
   noButton.onpointerenter = escapeNo; noButton.onclick = event => { event.preventDefault(); escapeNo(); };
   document.querySelectorAll('[data-answer="yes"]').forEach(button => button.onclick = async () => {
     noButton.classList.remove('escaping');
