@@ -39,7 +39,8 @@ if ($('#invite')) {
   const escapeNo = () => { const box = phone.getBoundingClientRect(); noButton.classList.add('escaping'); noButton.style.left = `${box.left + 24 + Math.random() * (box.width - noButton.offsetWidth - 48)}px`; noButton.style.top = `${box.top + 24 + Math.random() * (box.height - noButton.offsetHeight - 48)}px`; };
   noButton.onpointerenter = escapeNo; noButton.onclick = event => { event.preventDefault(); escapeNo(); };
   $('[data-answer="yes"]').onclick = () => { noButton.classList.remove('escaping'); show('step-yes'); };
-  $('#to-ideas').onclick = () => show('step-ideas'); $('#to-date').onclick = () => show('step-date');
-  $('#details').onsubmit = event => { event.preventDefault(); if (!selectedIdea) return; finish({ answer: 'yes', date: $('#date').value, time: $('#time').value, idea: selectedIdea }); };
+  $('#to-ideas').onclick = () => show('step-date');
+  $('#details').onsubmit = event => { event.preventDefault(); show('step-ideas'); };
+  $('#to-date').onclick = () => { if (selectedIdea) finish({ answer: 'yes', date: $('#date').value, time: $('#time').value, idea: selectedIdea }); };
   async function finish(body) { try { await request(`/api/invites/${inviteCode}/response`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); $('#ticket-lead').textContent = `${invite.recipient}, ты сказала «Да» 💘`; $('#ticket-text').textContent = `Встречаемся ${body.date} в ${body.time}. В планах: ${body.idea}.`; $('#ticket-date').textContent = body.date; $('#ticket-time').textContent = body.time; $('#ticket-idea').textContent = body.idea; show('step-ticket'); } catch (error) { alert(error.message); } }
 }
