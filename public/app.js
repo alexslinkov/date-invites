@@ -43,7 +43,9 @@ if ($('#invite')) {
     invite = data; $('#for').textContent = `${data.recipient}, привет 👋`; $('#question').textContent = data.question;
     $('#ideas').innerHTML = data.options.map((option, index) => { const title = typeof option === 'string' ? option : option.title; const emoji = typeof option === 'string' ? icons[index] : option.emoji || icons[index]; return `<button type="button" data-idea="${escapeHtml(title)}"><span>${escapeHtml(emoji)}</span>${escapeHtml(title)}</button>`; }).join('');
     document.querySelectorAll('[data-idea]').forEach(button => button.onclick = () => { document.querySelectorAll('[data-idea]').forEach(x => x.classList.remove('selected')); button.classList.add('selected'); selectedIdea = button.dataset.idea; $('#to-date').disabled = false; });
-  }).catch(error => { $('#question').textContent = error.message; });
+  }).catch(() => {
+    $('#invite').innerHTML = '<div class="speaker"></div><section class="used-invite"><div class="mascot">💌</div><h1>Это приглашение уже использовано</h1><p>Похоже, теперь твоя очередь звать на свиданку 💘</p></section>';
+  });
   const noButton = $('[data-answer="no"]'); const phone = $('.date-phone');
   const escapeNo = () => { const box = phone.getBoundingClientRect(); noButton.classList.add('escaping'); noButton.style.left = `${box.left + 24 + Math.random() * (box.width - noButton.offsetWidth - 48)}px`; noButton.style.top = `${box.top + 24 + Math.random() * (box.height - noButton.offsetHeight - 48)}px`; };
   noButton.onpointerenter = escapeNo; noButton.onclick = event => { event.preventDefault(); escapeNo(); };
