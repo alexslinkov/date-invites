@@ -6,6 +6,10 @@ function escapeHtml(value) { const box = document.createElement('div'); box.text
 
 if ($('#invite-form')) {
   const form = $('#invite-form'); const password = $('#password');
+  $('#toggle-password').onclick = () => {
+    const visible = password.type === 'text'; password.type = visible ? 'password' : 'text';
+    $('#toggle-password').textContent = visible ? '◉' : '◉̸';
+  };
   form.addEventListener('submit', async event => {
     event.preventDefault();
     try {
@@ -30,8 +34,10 @@ if ($('#invite')) {
     $('#ideas').innerHTML = data.options.map(option => `<button type="button" data-idea="${escapeHtml(option)}">${escapeHtml(option)}</button>`).join('');
     document.querySelectorAll('[data-idea]').forEach(button => button.onclick = () => { document.querySelectorAll('[data-idea]').forEach(x => x.classList.remove('selected')); button.classList.add('selected'); selectedIdea = button.dataset.idea; });
   }).catch(error => { $('#question').textContent = error.message; });
-  document.querySelectorAll('[data-answer]').forEach(button => button.onclick = async () => {
-    if (button.dataset.answer === 'no') return finish({ answer: 'no' });
+  const noButton = $('[data-answer="no"]');
+  const escapeNo = () => { noButton.classList.add('escaping'); noButton.style.left = `${24 + Math.random() * (window.innerWidth - noButton.offsetWidth - 48)}px`; noButton.style.top = `${24 + Math.random() * (window.innerHeight - noButton.offsetHeight - 48)}px`; };
+  noButton.onpointerenter = escapeNo; noButton.onclick = event => { event.preventDefault(); escapeNo(); };
+  document.querySelectorAll('[data-answer="yes"]').forEach(button => button.onclick = async () => {
     $('#ask').hidden = true; $('#details').hidden = false;
   });
   $('#details').onsubmit = event => { event.preventDefault(); if (!selectedIdea) return alert('Выбери вариант встречи'); finish({ answer: 'yes', date: $('#date').value, time: $('#time').value, idea: selectedIdea }); };
