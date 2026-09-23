@@ -15,6 +15,10 @@ if ($('#invite-form')) {
     $('#toggle-password').textContent = visible ? '◉' : '◉̸';
   };
   $('#add-event').onclick = () => { $('#events').insertAdjacentHTML('beforeend', '<div class="event-row"><input class="event-emoji" value="✨" aria-label="Эмодзи"><input class="event-title" placeholder="Например, боулинг" aria-label="Мероприятие"></div>'); };
+  let activeEmoji = document.querySelector('.event-emoji'); document.addEventListener('focusin', event => { if (event.target.classList.contains('event-emoji')) activeEmoji = event.target; });
+  const popularEmojis = $('#emoji-bank').textContent.trim().split(' ');
+  $('#emoji-bank').innerHTML = popularEmojis.map(emoji => `<button type="button" title="Поставить ${emoji}">${emoji}</button>`).join('');
+  document.querySelectorAll('#emoji-bank button').forEach(button => button.onclick = () => { if (activeEmoji) { activeEmoji.value = button.textContent; activeEmoji.focus(); } });
   form.addEventListener('submit', async event => {
     event.preventDefault();
     try {
